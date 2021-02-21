@@ -1,0 +1,40 @@
+* yarn add -D @types/node typescript
+* npx tsconfig.json
+* yarn add -D ts-node
+    * ts-node src/index.ts
+* tsc -w
+* yarn add @mikro-orm/cli @mikro-orm/core @mikro-orm/migrations @mikro-orm/postgresql pg
+
+======= migrations
+* add below to package.json
+  "mikro-orm": {
+    "useTsNode": true,
+    "configPaths": [
+      "./src/mikro-orm.config.ts",
+      "./dist/mikro-orm.config.js"
+    ]
+  }
+* create migrations schema and tables files
+    npx mikro-orm migration:create --initial
+
+======== specify migrations in mikro-orm.config.ts
+{
+    migrations: {
+        path: path.join(__dirname, './migrations'),
+        pattern: /^[\w-]+\d+\.[tj]s$/,
+    },
+    entities: [Post],
+    dbName: 'lereddit',
+    user: 'power',
+    password: 'power',
+    type: 'postgresql',
+    debug: !__prod__
+}
+
+
+======== Type Graphql
+yarn add express apollo-server-express graphql type-graphql
+yarn add -D @types/express
+yarn add reflect-metadata
+-> object types are for return from query/functions
+-> input types are for input for query/functions
