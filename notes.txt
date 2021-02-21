@@ -38,3 +38,12 @@ yarn add -D @types/express
 yarn add reflect-metadata
 -> object types are for return from query/functions
 -> input types are for input for query/functions
+
+========= setting session in graphql =========
+* Two packages needed:-
+  express-session & connect-redis
+* install redis-server
+* commands
+  1) yarn add redis connect-redis express-session
+  2) yarn add -D @types/connect-redis @types/express-session
+* set request.credentials to "include" in browser playground

@@ -1,8 +1,7 @@
 import { User } from "../entities/User";
 import { MyContext } from "src/types";
-import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Resolver } from "type-graphql";
-import argon2 from 'argon2';
-import { addErrorLoggingToSchema } from "apollo-server-express";
+import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
+import argon2 from "argon2";
 
 @InputType()
 class UsernamePasswordInput {
@@ -30,7 +29,7 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
-    @Mutation( () => UserResponse )
+    @Mutation(() => UserResponse)
     async register(
         @Arg("options") options: UsernamePasswordInput,
         @Ctx() { em }: MyContext
@@ -38,84 +37,115 @@ export class UserResolver {
         if (options.username.length <= 3) {
             // username length error
             return {
-                errors: [{
-                    field: 'username',
-                    message: 'length must be greater than 3'
-                }]
-            }
+                errors: [
+                    {
+                        field: "username",
+                        message: "length must be greater than 3",
+                    },
+                ],
+            };
         }
         if (options.password.length <= 3) {
             // password length error
             return {
-                errors: [{
-                    field: 'pasword',
-                    message: 'length must be greater than 3'
-                }]
-            }
+                errors: [
+                    {
+                        field: "pasword",
+                        message: "length must be greater than 3",
+                    },
+                ],
+            };
         }
 
         const hashedPassword = await argon2.hash(options.password);
-        let user = em.create(User, { 
+        let user = em.create(User, {
             username: options.username,
-            password: hashedPassword
+            password: hashedPassword,
         });
         try {
-            await em.persistAndFlush(user);    
+            await em.persistAndFlush(user);
         } catch (error) {
-            if (error.code === "23505" || error.detail.includes('User already exists')) {
+            if (
+                error.code === "23505" ||
+                error.detail.includes("User already exists")
+            ) {
                 // duplicate username error
                 return {
-                    errors: [{
-                        field: 'username',
-                        message: 'username already exists'
-                    }]
-                }
+                    errors: [
+                        {
+                            field: "username",
+                            message: "username already exists",
+                        },
+                    ],
+                };
             }
         }
-        return {user};
+        return { user };
     }
 
-    @Mutation( () => UserResponse )
+    @Query(() => User, { nullable: true })
+    async me( @Ctx() { em, req }: MyContext ) {
+        // you're not logged in
+        if (!req.session.userId) {
+            return null;
+        }
+        return await em.findOne(User, {
+            id: req.session.userId
+        });
+    }
+
+    @Mutation(() => UserResponse)
     async login(
         @Arg("options") options: UsernamePasswordInput,
-        @Ctx() { em }: MyContext
+        @Ctx() { em, req }: MyContext
     ): Promise<UserResponse> {
         if (options.username.length <= 2) {
             return {
-                errors: [{
-                    field: 'username',
-                    message: 'length must be greater than 2'
-                }]
-            }
+                errors: [
+                    {
+                        field: "username",
+                        message: "length must be greater than 2",
+                    },
+                ],
+            };
         }
         if (options.password.length <= 3) {
             return {
-                errors: [{
-                    field: 'password',
-                    message: 'length must be greater than 3'
-                }]
-            }
+                errors: [
+                    {
+                        field: "password",
+                        message: "length must be greater than 3",
+                    },
+                ],
+            };
         }
         let user = await em.findOne(User, {
-            username: options.username
+            username: options.username,
         });
         if (!user) {
             return {
-                errors: [{
-                    field: 'username',
-                    message: "that username doesn't exist"
-                }]
-            }
+                errors: [
+                    {
+                        field: "username",
+                        message: "that username doesn't exist",
+                    },
+                ],
+            };
         }
         const valid = await argon2.verify(user.password, options.password);
         if (!valid) {
             return {
-                errors: [{
-                    field: 'password',
-                    message: "incorrect password"
-                }]
-            }
+                errors: [
+                    {
+                        field: "password",
+                        message: "incorrect password",
+                    },
+                ],
+            };
         }
+
+        req.session.userId = user.id;
+        
         return { user };
     }
 }
