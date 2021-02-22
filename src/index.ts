@@ -55,7 +55,12 @@ const main = async () => {
             em: orm.em,
         }),
     });
-    apolloServer.applyMiddleware({ app });
+    apolloServer.applyMiddleware({
+        app,
+        cors: {
+            origin: "http://localhost:3000",
+        },
+    });
     app.listen(4000, () => {
         console.log(`Server running on port 4000`)
     });

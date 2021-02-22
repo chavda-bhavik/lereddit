@@ -1,0 +1,7 @@
+VSCode
+    ctrl+shift+i => align everyting on files
+    Ctrl+tab => navigate among files
+Youtube
+    j = move 15 seconds backward
+    k = pause
+    l = move 15 seconds forward
