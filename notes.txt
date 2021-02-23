@@ -49,3 +49,45 @@ yarn add reflect-metadata
 * set request.credentials to "include" in browser playground
 * yarn add urql graphql 
 =======
+
+============ cors ===================
+import cors from "cors";
+* applying cors to express
+    app.use(
+        cors({
+            origin: "http://localhost:3000",
+            credentials: true,
+        })
+    );
+* applying cors to single route express
+    app.use(
+        "/",
+        cors({
+            origin: "http://localhost:3000",
+            credentials: true,
+        })
+    );
+* apollo cors cofiguration
+    apolloServer.applyMiddleware({
+        app,
+        cors: {
+            origin: "http://localhost:3000",
+            credentials: true,
+        },
+    });
+* on front side with urql
+  const client = createClient({
+    url: "http://localhost:4000/graphql",
+    fetchOptions: {
+      credentials: "include"
+    }
+  });
+
+
+========================================
+https://graphql-code-generator.com is used to create hooks for us on client side from schema
+yarn add -D @graphql-codegen/cli
+yarn graphql-codegen init
+yarn add -D @graphql-codegen/typescript-urql
+
+create register.graphql file and according to generate outputs

@@ -2,6 +2,7 @@ import { User } from "../entities/User";
 import { MyContext } from "src/types";
 import { Arg, Ctx, Field, InputType, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import argon2 from "argon2";
+import { EntityManager } from "@mikro-orm/postgresql";
 
 @InputType()
 class UsernamePasswordInput {
@@ -50,7 +51,7 @@ export class UserResolver {
             return {
                 errors: [
                     {
-                        field: "pasword",
+                        field: "password",
                         message: "length must be greater than 3",
                     },
                 ],
@@ -58,12 +59,21 @@ export class UserResolver {
         }
 
         const hashedPassword = await argon2.hash(options.password);
-        let user = em.create(User, {
-            username: options.username,
-            password: hashedPassword,
-        });
+        let user;
         try {
-            await em.persistAndFlush(user);
+            const result = await (em as EntityManager)
+                .createQueryBuilder(User)
+                .getKnexQuery()
+                .insert({
+                    username: options.username,
+                    password: hashedPassword,
+                    created_at: new Date(),
+                    updated_at: new Date(),
+                })
+                .returning("*");
+            user = result[0];
+            user.createdAt = user.created_at;
+            user.updatedAt = user.updated_at;
         } catch (error) {
             if (
                 error.code === "23505" ||
