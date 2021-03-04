@@ -91,3 +91,6 @@ yarn graphql-codegen init
 yarn add -D @graphql-codegen/typescript-urql
 
 create register.graphql file and according to generate outputs
+
+* package used for caching in graphql
+@urql/exchange-graphcache 
