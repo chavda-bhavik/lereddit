@@ -56,7 +56,7 @@ const main = async () => {
             resolvers: [HelloResolver, PostResolver, UserResolver],
             validate: false,
         }),
-        context: ({ req, res }):  MyContext => ({
+        context: ({ req, res }): MyContext => ({
             req,
             res,
             em: orm.em,
@@ -67,7 +67,7 @@ const main = async () => {
         cors: false,
     });
     app.listen(4000, () => {
-        console.log(`Server running on port 4000`)
+        console.log(`Server running on port 4000`);
     });
     // const post = orm.em.create(Post, { title: 'my first post' });
     // await orm.em.persistAndFlush(post);
