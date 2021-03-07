@@ -3,10 +3,12 @@ import { MyContext } from "src/types";
 import { Arg, Ctx, Field, Mutation, ObjectType, Query, Resolver } from "type-graphql";
 import argon2 from "argon2";
 import { EntityManager } from "@mikro-orm/postgresql";
-import { COOKIE_NAME } from "../constants";
+import { COOKIE_NAME, FORGOT_PASSWORD_PREFIX } from "../constants";
 import { UsernamePasswordInput } from "./UsernamePasswordInput";
 import { FieldError } from "./FieldError";
 import { validateRegister } from "../util/validateRegister";
+import sendEmail from "../util/sendEmail";
+import { v4 } from "uuid";
 
 @ObjectType()
 class UserResponse {
@@ -18,12 +20,71 @@ class UserResponse {
 
 @Resolver()
 export class UserResolver {
+    @Mutation(() => UserResponse)
+    async changePassword(
+        @Ctx() { em, redis, req }: MyContext,
+        @Arg("token") token: string,
+        @Arg("newPassword") newPassword: string
+    ): Promise<UserResponse> {
+        if (newPassword.length <= 3) {
+            return {
+                errors: [
+                    {
+                        field: "newPassword",
+                        message: "length must be greater than 3",
+                    },
+                ],
+            };
+        }
+        // get userId from redis
+        const userId = await redis.get(FORGOT_PASSWORD_PREFIX + token);
+        if (!userId) {
+            return {
+                errors: [
+                    {
+                        field: "token",
+                        message: "token expired"
+                    }
+                ]
+            }
+        }
+        const user = await em.findOne(User, { id: parseInt(userId) });
+        // user not found
+        if (!user) {
+            return {
+                errors: [
+                    {
+                        field: "token",
+                        message: "user no longer exists"
+                    }
+                ]
+            }
+        }
+        // user is valid, so updating password
+        user.password = await argon2.hash(newPassword);
+        await em.persistAndFlush(user);
+        
+        // returning user and logging in
+        req.session.userId = user.id;
+        return { user };
+    }
+        
+        
     @Mutation(() => Boolean)
     async forgotPassword(
         @Arg("email") email: string,
-        @Ctx() { em }: MyContext
+        @Ctx() { em, redis }: MyContext
     ): Promise<Boolean> {
-        const user = await em.find(User, { email });
+        const user = await em.findOne(User, { email });
+        if (!user) {
+            return false;
+        }
+        const token = v4();
+        await redis.set(FORGOT_PASSWORD_PREFIX  +  token, user.id, 'ex', 1000*60*60*24*3);
+        sendEmail(
+            email,
+            `<a href='http://localhost:3000/change-password/${token}'>reset password</a>`
+        );
         return true;
     }
 
@@ -33,9 +94,10 @@ export class UserResolver {
         @Ctx() { em, req }: MyContext
     ): Promise<UserResponse> {
         const errorResponse = validateRegister(options);
-        if (errorResponse.length > 0) return {
-            errors: errorResponse
-        }
+        if (errorResponse.length > 0)
+            return {
+                errors: errorResponse,
+            };
 
         const hashedPassword = await argon2.hash(options.password);
         let user;
@@ -65,10 +127,7 @@ export class UserResolver {
                         },
                     ],
                 };
-            }
-            else if (
-                error.detail.includes("username")
-            ) {
+            } else if (error.detail.includes("username")) {
                 // duplicate username error
                 return {
                     errors: [
@@ -102,7 +161,7 @@ export class UserResolver {
         @Arg("password") password: string,
         @Ctx() { em, req }: MyContext
     ): Promise<UserResponse> {
-        if (usernameOrEmail.includes('@')) {
+        if (usernameOrEmail.includes("@")) {
             // email is provided
         } else {
             // username is provided
@@ -127,8 +186,11 @@ export class UserResolver {
                 ],
             };
         }
-        let user = await em.findOne(User,
-            usernameOrEmail.includes('@') ? { email: usernameOrEmail }: { username: usernameOrEmail }
+        let user = await em.findOne(
+            User,
+            usernameOrEmail.includes("@")
+                ? { email: usernameOrEmail }
+                : { username: usernameOrEmail }
         );
         if (!user) {
             return {
