@@ -31,9 +31,10 @@ const main = async () => {
         entities: [User, Post],
     });
     await conn.runMigrations();
-    
+    // await Post.delete({});
+
     const app = express();
-    
+
     let RedisStore = connectRedis(session);
     let redis = new Redis();
 
